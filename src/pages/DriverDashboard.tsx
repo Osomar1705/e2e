@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getPendingTrips, getDriverTrips, acceptTrip } from '../api/trips';
+import { getPendingTrips, getDriverTrips, acceptTrip, completeTrip } from '../api/trips';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import StatusBadge from '../components/StatusBadge';
 import type { Trip } from '../types';
+import { getApiError } from '../utils/apiError';
 
 export default function DriverDashboard() {
   const { user, refreshUser } = useAuth();
@@ -13,6 +14,7 @@ export default function DriverDashboard() {
   const [myTrips, setMyTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState<number | null>(null);
+  const [completingActive, setCompletingActive] = useState(false);
   const [error, setError] = useState('');
 
   const activeTrip = myTrips.find((t) => t.status === 'IN_PROGRESS');
@@ -22,6 +24,8 @@ export default function DriverDashboard() {
       const [pending, my] = await Promise.all([getPendingTrips(), getDriverTrips()]);
       setPendingTrips(pending.data);
       setMyTrips(my.data);
+    } catch (err: unknown) {
+      setError(getApiError(err, 'Error al cargar viajes'));
     } finally {
       setLoading(false);
     }
@@ -40,9 +44,23 @@ export default function DriverDashboard() {
       await loadData();
       navigate(`/driver/trips/${tripId}`);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setError(e.response?.data?.error || 'Error al aceptar viaje');
+      setError(getApiError(err, 'Error al aceptar viaje'));
       setAccepting(null);
+    }
+  };
+
+  const handleCompleteActive = async () => {
+    if (!activeTrip) return;
+    setCompletingActive(true);
+    setError('');
+    try {
+      await completeTrip(activeTrip.id);
+      await refreshUser();
+      await loadData();
+    } catch (err: unknown) {
+      setError(getApiError(err, 'Error al completar viaje'));
+    } finally {
+      setCompletingActive(false);
     }
   };
 
@@ -71,12 +89,21 @@ export default function DriverDashboard() {
               <p>{activeTrip.pickupAddress} → {activeTrip.dropoffAddress}</p>
               <p>Pasajero: {activeTrip.passenger.firstName} {activeTrip.passenger.lastName}</p>
             </div>
-            <button
-              className="btn btn-success"
-              onClick={() => navigate(`/driver/trips/${activeTrip.id}`)}
-            >
-              Ver viaje →
-            </button>
+            <div className="active-trip-actions">
+              <button
+                className="btn btn-success"
+                onClick={handleCompleteActive}
+                disabled={completingActive}
+              >
+                {completingActive ? 'Completando...' : '✓ Completar viaje'}
+              </button>
+              <button
+                className="btn btn-outline"
+                onClick={() => navigate(`/driver/trips/${activeTrip.id}`)}
+              >
+                Ver detalle
+              </button>
+            </div>
           </div>
         )}
 
@@ -106,12 +133,6 @@ export default function DriverDashboard() {
                   <p><span className="label">Pasajero:</span> {trip.passenger.firstName} {trip.passenger.lastName}</p>
                 </div>
                 <div className="card-actions">
-                  <button
-                    className="btn btn-outline"
-                    onClick={() => navigate(`/driver/trips/${trip.id}`)}
-                  >
-                    Ver detalle
-                  </button>
                   <button
                     className="btn btn-primary"
                     disabled={!user?.available || accepting === trip.id}

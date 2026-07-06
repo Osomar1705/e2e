@@ -1,32 +1,57 @@
-# React + TypeScript + Vite
+# UberClone Frontend — CS2031 DBP 2026-1
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Frontend React + TypeScript para integración E2E con el backend [cs2031-2026-1-week14-e2e-2](https://github.com/CS2031-DBP/cs2031-2026-1-week14-e2e-2).
 
-Currently, two official plugins are available:
+## Requisitos
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js 18+
+- Backend corriendo en `http://localhost:8080`
 
-## React Compiler
+## Configuración
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+cp .env.example .env   # opcional; el default apunta a localhost:8080
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Variables de entorno:
+
+| Variable | Default | Descripción |
+|---|---|---|
+| `VITE_API_URL` | `http://localhost:8080` | URL base del backend |
+
+## Desarrollo
+
+```bash
+# Terminal 1 — backend (en el repo del backend)
+./mvnw spring-boot:run
+
+# Terminal 2 — frontend
+npm run dev
+```
+
+Abre `http://localhost:5173`.
+
+## Build
+
+```bash
+npm run build
+npm run preview
+```
+
+## Cuentas de demo
+
+| Email | Password | Rol |
+|---|---|---|
+| `ana@uber.com` | `pass123` | PASSENGER |
+| `carlos@uber.com` | `pass123` | DRIVER |
+
+## Pantallas
+
+- **Login / Registro** — autenticación JWT con selector de rol
+- **Dashboard pasajero** — lista de viajes y botón para pedir viaje
+- **Solicitar viaje** — conductores disponibles + formulario origen/destino
+- **Detalle pasajero** — polling en vivo, calificación al completar
+- **Dashboard conductor** — viajes pendientes, viaje activo con completar
+- **Detalle conductor** — completar viaje en curso
+- **Historial** — tabla filtrable por estado (ambos roles)

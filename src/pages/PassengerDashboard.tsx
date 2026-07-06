@@ -5,16 +5,19 @@ import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import Navbar from '../components/Navbar';
 import type { Trip } from '../types';
+import { getApiError } from '../utils/apiError';
 
 export default function PassengerDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     getMyTrips()
       .then((res) => setTrips(res.data))
+      .catch((err: unknown) => setError(getApiError(err, 'Error al cargar viajes')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -31,6 +34,8 @@ export default function PassengerDashboard() {
             + Pedir viaje
           </button>
         </div>
+
+        {error && <div className="error-box">{error}</div>}
 
         <h2>Mis viajes</h2>
         {loading ? (

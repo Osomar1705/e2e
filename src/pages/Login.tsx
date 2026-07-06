@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login, register } from '../api/auth';
-import { getMe } from '../api/users';
 import { useAuth } from '../context/AuthContext';
 import type { Role } from '../types';
+import { getApiError } from '../utils/apiError';
 
 export default function Login() {
   const [isRegister, setIsRegister] = useState(false);
@@ -31,13 +31,12 @@ export default function Login() {
         const res = await login({ email, password });
         token = res.data.token;
       }
-      setToken(token);
-      const meRes = await getMe();
-      const userRole = meRes.data.role;
-      navigate(userRole === 'DRIVER' ? '/driver' : '/passenger');
+      const me = await setToken(token);
+      if (me) {
+        navigate(me.role === 'DRIVER' ? '/driver' : '/passenger');
+      }
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setError(e.response?.data?.error || 'Error al autenticar');
+      setError(getApiError(err, 'Error al autenticar'));
     } finally {
       setLoading(false);
     }

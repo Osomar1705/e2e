@@ -1,40 +1,50 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getTripById, completeTrip } from '../api/trips';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import StatusBadge from '../components/StatusBadge';
 import type { Trip } from '../types';
+import { getApiError } from '../utils/apiError';
 
 export default function TripDetailDriver() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
   const [trip, setTrip] = useState<Trip | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState('');
   const [completed, setCompleted] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchTrip = async () => {
+  const fetchTrip = useCallback(async () => {
     try {
       const res = await getTripById(Number(id));
       setTrip(res.data);
+      setLoadError('');
       if (res.data.status === 'COMPLETED') {
         if (intervalRef.current) clearInterval(intervalRef.current);
       }
-    } catch {
+    } catch (err: unknown) {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      setLoadError(getApiError(err, 'No se pudo cargar el viaje'));
+      setTrip(null);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
+    setLoading(true);
+    setLoadError('');
     fetchTrip();
     intervalRef.current = setInterval(fetchTrip, 4000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [id]);
+  }, [fetchTrip]);
 
   const handleComplete = async () => {
     setCompleting(true);
@@ -46,14 +56,32 @@ export default function TripDetailDriver() {
       await refreshUser();
       if (intervalRef.current) clearInterval(intervalRef.current);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setError(e.response?.data?.error || 'Error al completar viaje');
+      setError(getApiError(err, 'Error al completar viaje'));
     } finally {
       setCompleting(false);
     }
   };
 
-  if (!trip) return <><Navbar /><div className="page"><p>Cargando viaje...</p></div></>;
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div className="page"><p>Cargando viaje...</p></div>
+      </>
+    );
+  }
+
+  if (loadError || !trip) {
+    return (
+      <>
+        <Navbar />
+        <div className="page">
+          <button className="back-btn" onClick={() => navigate('/driver')}>← Volver</button>
+          <div className="error-box">{loadError || 'Viaje no encontrado'}</div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

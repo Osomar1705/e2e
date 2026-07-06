@@ -5,18 +5,21 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import StatusBadge from '../components/StatusBadge';
 import type { Trip, TripStatus } from '../types';
+import { getApiError } from '../utils/apiError';
 
 export default function History() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [filter, setFilter] = useState<TripStatus | 'ALL'>('ALL');
 
   useEffect(() => {
     const fetcher = user?.role === 'DRIVER' ? getDriverTrips : getMyTrips;
     fetcher()
       .then((res) => setTrips(res.data))
+      .catch((err: unknown) => setError(getApiError(err, 'Error al cargar historial')))
       .finally(() => setLoading(false));
   }, [user?.role]);
 
@@ -42,6 +45,8 @@ export default function History() {
             </button>
           ))}
         </div>
+
+        {error && <div className="error-box">{error}</div>}
 
         {loading ? (
           <p>Cargando historial...</p>

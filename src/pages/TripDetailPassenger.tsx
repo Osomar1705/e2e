@@ -1,14 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getTripById, rateTrip } from '../api/trips';
 import Navbar from '../components/Navbar';
 import StatusBadge from '../components/StatusBadge';
 import type { Trip } from '../types';
+import { getApiError } from '../utils/apiError';
 
 export default function TripDetailPassenger() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [trip, setTrip] = useState<Trip | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [ratingLoading, setRatingLoading] = useState(false);
@@ -16,25 +19,32 @@ export default function TripDetailPassenger() {
   const [ratingSuccess, setRatingSuccess] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchTrip = async () => {
+  const fetchTrip = useCallback(async () => {
     try {
       const res = await getTripById(Number(id));
       setTrip(res.data);
+      setLoadError('');
       if (res.data.status === 'COMPLETED') {
         if (intervalRef.current) clearInterval(intervalRef.current);
       }
-    } catch {
+    } catch (err: unknown) {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      setLoadError(getApiError(err, 'No se pudo cargar el viaje'));
+      setTrip(null);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
+    setLoading(true);
+    setLoadError('');
     fetchTrip();
     intervalRef.current = setInterval(fetchTrip, 4000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [id]);
+  }, [fetchTrip]);
 
   const handleRate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,14 +55,32 @@ export default function TripDetailPassenger() {
       setTrip(res.data);
       setRatingSuccess(true);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setRatingError(e.response?.data?.error || 'Error al calificar');
+      setRatingError(getApiError(err, 'Error al calificar'));
     } finally {
       setRatingLoading(false);
     }
   };
 
-  if (!trip) return <><Navbar /><div className="page"><p>Cargando viaje...</p></div></>;
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div className="page"><p>Cargando viaje...</p></div>
+      </>
+    );
+  }
+
+  if (loadError || !trip) {
+    return (
+      <>
+        <Navbar />
+        <div className="page">
+          <button className="back-btn" onClick={() => navigate('/passenger')}>← Volver</button>
+          <div className="error-box">{loadError || 'Viaje no encontrado'}</div>
+        </div>
+      </>
+    );
+  }
 
   const showRatingForm = trip.status === 'COMPLETED' && trip.passengerRating === null && !ratingSuccess;
 

@@ -4,6 +4,7 @@ import { getAvailableDrivers } from '../api/users';
 import { createTrip } from '../api/trips';
 import Navbar from '../components/Navbar';
 import type { User } from '../types';
+import { getApiError } from '../utils/apiError';
 
 export default function RequestTrip() {
   const navigate = useNavigate();
@@ -11,10 +12,15 @@ export default function RequestTrip() {
   const [pickupAddress, setPickupAddress] = useState('');
   const [dropoffAddress, setDropoffAddress] = useState('');
   const [loading, setLoading] = useState(false);
+  const [driversLoading, setDriversLoading] = useState(true);
+  const [driversError, setDriversError] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
-    getAvailableDrivers().then((res) => setDrivers(res.data));
+    getAvailableDrivers()
+      .then((res) => setDrivers(res.data))
+      .catch((err: unknown) => setDriversError(getApiError(err, 'Error al cargar conductores')))
+      .finally(() => setDriversLoading(false));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,8 +32,7 @@ export default function RequestTrip() {
       const res = await createTrip({ pickupAddress, dropoffAddress });
       navigate(`/trips/${res.data.id}`);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setError(e.response?.data?.error || 'Error al solicitar viaje');
+      setError(getApiError(err, 'Error al solicitar viaje'));
       setLoading(false);
     }
   };
@@ -41,8 +46,12 @@ export default function RequestTrip() {
 
         <div className="drivers-panel">
           <h3>Conductores disponibles ({drivers.length})</h3>
-          {drivers.length === 0 ? (
-            <p className="no-drivers">No hay conductores disponibles en este momento.</p>
+          {driversLoading ? (
+            <p>Cargando conductores...</p>
+          ) : driversError ? (
+            <div className="error-box">{driversError}</div>
+          ) : drivers.length === 0 ? (
+            <p className="no-drivers">No hay conductores disponibles en este momento. Puedes solicitar el viaje igualmente.</p>
           ) : (
             <div className="drivers-grid">
               {drivers.map((d) => (
@@ -78,13 +87,10 @@ export default function RequestTrip() {
             <button type="button" className="btn btn-outline" onClick={() => navigate('/passenger')}>
               Cancelar
             </button>
-            <button type="submit" className="btn btn-primary" disabled={loading || drivers.length === 0}>
+            <button type="submit" className="btn btn-primary" disabled={loading}>
               {loading ? 'Solicitando...' : 'Confirmar viaje'}
             </button>
           </div>
-          {drivers.length === 0 && (
-            <p className="form-hint">No hay conductores disponibles. Intenta más tarde.</p>
-          )}
         </form>
       </div>
     </>

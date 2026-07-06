@@ -6,10 +6,10 @@ import { getMe } from '../api/users';
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  setToken: (token: string) => void;
+  setToken: (token: string) => Promise<User | null>;
   logout: () => void;
   loading: boolean;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<User | null>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -19,18 +19,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setTokenState] = useState<string | null>(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
 
-  const refreshUser = async () => {
+  const refreshUser = async (): Promise<User | null> => {
     try {
       const res = await getMe();
       setUser(res.data);
+      return res.data;
     } catch {
       setUser(null);
+      return null;
     }
   };
 
-  const setToken = (t: string) => {
+  const setToken = async (t: string): Promise<User | null> => {
     localStorage.setItem('token', t);
     setTokenState(t);
+    return refreshUser();
   };
 
   const logout = () => {
@@ -45,7 +48,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, token, setToken, logout, loading, refreshUser }}>
